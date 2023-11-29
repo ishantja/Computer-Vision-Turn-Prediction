@@ -2,11 +2,12 @@
 
 import cv2
 import numpy as np
+import os
 
 # visualizer class is capable of productin 1-5 output windows scaled proportionally to the input sample image
 # it also has the capability to save the generated frames asa a video if used inside a loop
 class Visualizer():
-    def __init__(self, image, scale, frames=[None, None, None, None, None, 'Final Frame'], save=False):
+    def __init__(self, image, scale, frames=[None, None, None, None, 'Final Frame'], save=False):
         self.frame1 = None
         self.frame2 = None
         self.frame3 = None
@@ -22,18 +23,15 @@ class Visualizer():
         self.frame_height = self.image.shape[0]
         self.frame_width = self.image.shape[1]
 
-        self.number_of_frames = 1+(4-frames.count(None))
-        self.number_of_small_frames = self.number_of_frames - 1
+        self.number_of_small_frames = 4
         self.aspect_ratio = self.frame_width/self.frame_height
 
         self.small_frame_width = int(
             self.frame_width/self.number_of_small_frames)
-        self.small_frame_height = int(
-            (self.number_of_small_frames * self.small_frame_width)/self.aspect_ratio)
+        self.small_frame_height = 350
 
-        self.capture_width = self.frame_width * self.number_of_small_frames
-        self.capture_height = self.frame_height * \
-            self.number_of_small_frames + self.frame_height
+        self.capture_width = self.frame_width
+        self.capture_height = self.frame_height + self.small_frame_height
 
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         self.fontScale = 1
@@ -43,14 +41,13 @@ class Visualizer():
         self.fps = 25
         if self.save:
             save_path = Visualizer.get_absolute_path(
-                "output") + "/lane_detection_output.mp4"
+                "output") + "/turn_prediction_output.mp4"
             self.result = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(
                 *'mp4v'), self.fps, (self.capture_width, self.capture_height))
 
     @staticmethod
     def show_image(image):
         cv2.imshow("preview", image)
-
 
     @staticmethod
     def get_absolute_path(dir):
@@ -67,6 +64,7 @@ class Visualizer():
 
     def update_frame(self, image, frame_name):
         if frame_name in self.frame_dict.keys():
+            image = cv2.resize(image, (self.small_frame_width, self.small_frame_height))
             self.frame_dict[frame_name] = image
             self.frame_dict[frame_name] = cv2.cvtColor(
                 self.frame_dict[frame_name], cv2.COLOR_BGR2RGB)
@@ -79,8 +77,7 @@ class Visualizer():
                 self.frame_dict[frame_name], frame_name, org2, self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
 
     def update_final_frame(self, image, frame_name):
-        image = cv2.resize(image, (self.frame_width * self.number_of_small_frames,
-                           self.frame_height * self.number_of_small_frames))
+        print("final frame size: ", image.shape)
 
         self.frame_dict[frame_name] = image
 
@@ -95,8 +92,11 @@ class Visualizer():
         for small_frame_name in list(self.frame_dict.keys())[:-1]:
             if small_frame_name != None:
                 small_frames.append(self.frame_dict[small_frame_name])
+                print("small frame size: ", self.frame_dict[small_frame_name].shape)
 
         bottom_frames = np.concatenate(small_frames, axis=1)
+
+        print("bottom_frames", bottom_frames.shape)
 
         output = np.concatenate(
             (self.frame_dict[frame_name], bottom_frames), axis=0)
@@ -363,6 +363,8 @@ def main():
     left_fit_coefs = None
     right_fit_coefs = None
     x_r = None
+    _, sample_image = frame.read()
+    visuals = Visualizer(sample_image, scale=1, frames=['Warped','Edges', 'Points', 'Polynomials', 'Turn Prediction'], save=True)
     while (frame.isOpened()):
         success, image = frame.read()
         if not success:
@@ -378,19 +380,19 @@ def main():
 
         warped, dst, h_inv = currentFrame.warp_lane(cropped,region)
         edge = currentFrame.detect_edges(warped)
-
-        # cv2.imshow("edge", edge)
+        visuals.update_frame(warped, "Warped")
+        visuals.update_frame(edge, "Edges")
 
         linesP = currentFrame.hough_lines(edge)
 
         all_points_left, all_points_right, points = currentFrame.lines_to_points(linesP, warped)
-        
-        cv2.imshow("points", points)
+        visuals.update_frame(points, "Points")
 
         final, left_fit_coefs, right_fit_coefs, x_r = currentFrame.fit_poly(all_points_left, all_points_right, dst, h_inv, image, left_fit_coefs, right_fit_coefs, x_r)
-
-        cv2.imshow("polynomial", dst)
+        visuals.update_frame(dst, "Polynomials")
+        
         # cv2.imshow("lane", final)
+        visuals.update_final_frame(final, "Turn Prediction")
 
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break

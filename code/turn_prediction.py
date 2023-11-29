@@ -1,4 +1,5 @@
-# this script detects curved lanes, calculates its radius of curvature, and tells us whether it is a right or a left turn
+# this script detects curved lanes, calculates its radius of curvature, and tells whether it is a right or a left turn
+# also has provisions to handle failure cases
 
 import cv2
 import numpy as np
@@ -69,8 +70,8 @@ class Visualizer():
             self.frame_dict[frame_name] = cv2.cvtColor(
                 self.frame_dict[frame_name], cv2.COLOR_BGR2RGB)
             # tune these two values for text alignment
-            vertical_placement = 0.95
-            horizontal_placement = 0.8
+            vertical_placement = 0.93
+            horizontal_placement = 0.55
             org2 = (int(self.frame_width-vertical_placement*self.frame_width),
                     int(self.frame_height-horizontal_placement*self.frame_height))
             self.frame_dict[frame_name] = cv2.putText(
@@ -79,8 +80,8 @@ class Visualizer():
     def update_final_frame(self, image, frame_name):
         self.frame_dict[frame_name] = image
 
-        vertical_placement = 0.95
-        horizontal_placement = 0.95
+        vertical_placement = 0.92
+        horizontal_placement = 0.88
         org1 = (int(self.frame_width-vertical_placement*self.frame_width),
                 int(self.capture_height-horizontal_placement * self.capture_height))
         self.frame_dict[frame_name] = cv2.putText(

@@ -77,8 +77,6 @@ class Visualizer():
                 self.frame_dict[frame_name], frame_name, org2, self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
 
     def update_final_frame(self, image, frame_name):
-        print("final frame size: ", image.shape)
-
         self.frame_dict[frame_name] = image
 
         vertical_placement = 0.95
@@ -92,12 +90,7 @@ class Visualizer():
         for small_frame_name in list(self.frame_dict.keys())[:-1]:
             if small_frame_name != None:
                 small_frames.append(self.frame_dict[small_frame_name])
-                print("small frame size: ", self.frame_dict[small_frame_name].shape)
-
         bottom_frames = np.concatenate(small_frames, axis=1)
-
-        print("bottom_frames", bottom_frames.shape)
-
         output = np.concatenate(
             (self.frame_dict[frame_name], bottom_frames), axis=0)
         if self.save:
@@ -254,7 +247,7 @@ class TurnPrediciton():
             all_points_left.append((i[2], i[3]))
 
         for i in all_points_left:
-            cv2.circle(points, i, 5, (0,255,255), 1)
+            cv2.circle(points, i, 5, (255,255,0), 2)
 
         all_points_right = []
         for i in right:
@@ -262,7 +255,7 @@ class TurnPrediciton():
             all_points_right.append((i[2], i[3]))
 
         for i in all_points_right:
-            cv2.circle(points, i, 5, (0,255,255), 1)
+            cv2.circle(points, i, 5, (255,255,0), 2)
 
         return all_points_left, all_points_right, points
 
@@ -359,12 +352,14 @@ class TurnPrediciton():
     
 def main():
     # TODO: write turn prediction class with all the preprocessing 
-    frame = cv2.VideoCapture('/home/ishan/Documents/UMD/portfolio/projects/turn_prediction/data/challenge.mp4')
+    video_path = Visualizer.get_absolute_path(
+                "data") + "/challenge.mp4"
+    frame = cv2.VideoCapture(video_path)
     left_fit_coefs = None
     right_fit_coefs = None
     x_r = None
     _, sample_image = frame.read()
-    visuals = Visualizer(sample_image, scale=1, frames=['Warped','Edges', 'Points', 'Polynomials', 'Turn Prediction'], save=True)
+    visuals = Visualizer(sample_image, scale=1, frames=['Top View','Edges', 'Points', 'Polynomials', 'Turn Prediction'], save=True)
     while (frame.isOpened()):
         success, image = frame.read()
         if not success:
@@ -380,7 +375,7 @@ def main():
 
         warped, dst, h_inv = currentFrame.warp_lane(cropped,region)
         edge = currentFrame.detect_edges(warped)
-        visuals.update_frame(warped, "Warped")
+        visuals.update_frame(warped, "Top View")
         visuals.update_frame(edge, "Edges")
 
         linesP = currentFrame.hough_lines(edge)
@@ -389,9 +384,10 @@ def main():
         visuals.update_frame(points, "Points")
 
         final, left_fit_coefs, right_fit_coefs, x_r = currentFrame.fit_poly(all_points_left, all_points_right, dst, h_inv, image, left_fit_coefs, right_fit_coefs, x_r)
+        dst = cv2.cvtColor(
+                dst, cv2.COLOR_BGR2RGB)
         visuals.update_frame(dst, "Polynomials")
         
-        # cv2.imshow("lane", final)
         visuals.update_final_frame(final, "Turn Prediction")
 
         if cv2.waitKey(25) & 0xFF == ord('q'):
